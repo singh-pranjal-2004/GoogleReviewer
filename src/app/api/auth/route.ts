@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-
-const ADMIN_PATH = path.join(process.cwd(), 'src/data/admin.json')
-
-function getAdmin() {
-  const data = fs.readFileSync(ADMIN_PATH, 'utf-8')
-  return JSON.parse(data)
-}
-
-function saveAdmin(admin: { username: string; password: string }) {
-  fs.writeFileSync(ADMIN_PATH, JSON.stringify(admin, null, 2))
-}
+import { connectDB } from '@/lib/mongodb'
+import Admin from '@/models/Admin'
 
 export async function POST(request: NextRequest) {
+  await connectDB()
   const { username, password } = await request.json()
-  const admin = getAdmin()
+
+  // Check if admin exists, if not create default
+  let admin = await Admin.findOne()
+  if (!admin) {
+    admin = await Admin.create({ username: 'bajatutorin', password: 'Pranjal@1234' })
+  }
 
   if (username === admin.username && password === admin.password) {
     return NextResponse.json({ success: true })
@@ -25,17 +20,21 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  await connectDB()
   const { currentPassword, newPassword, newUsername } = await request.json()
-  const admin = getAdmin()
+
+  const admin = await Admin.findOne()
+  if (!admin) {
+    return NextResponse.json({ error: 'Admin not found' }, { status: 404 })
+  }
 
   if (currentPassword !== admin.password) {
     return NextResponse.json({ error: 'Current password is incorrect' }, { status: 401 })
   }
 
-  saveAdmin({
-    username: newUsername || admin.username,
-    password: newPassword,
-  })
+  admin.username = newUsername || admin.username
+  admin.password = newPassword
+  await admin.save()
 
   return NextResponse.json({ success: true })
 }

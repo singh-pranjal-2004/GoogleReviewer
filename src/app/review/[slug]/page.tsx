@@ -1,33 +1,27 @@
 import { notFound } from 'next/navigation'
-import fs from 'fs'
-import path from 'path'
+import { connectDB } from '@/lib/mongodb'
+import Page from '@/models/Page'
 import ReviewClient from './ReviewClient'
 
-// Force dynamic so newly added pages work without rebuild
 export const dynamic = 'force-dynamic'
 
-interface PageData {
-  id: string
-  slug: string
-  businessName: string
-  reviewText: string
-  googleReviewLink: string
-  active: boolean
-}
-
-function getPages(): PageData[] {
-  const filePath = path.join(process.cwd(), 'src/data/pages.json')
-  const data = fs.readFileSync(filePath, 'utf-8')
-  return JSON.parse(data)
-}
-
-export default function ReviewPage({ params }: { params: { slug: string } }) {
-  const pages = getPages()
-  const page = pages.find((p) => p.slug === params.slug && p.active)
+export default async function ReviewPage({ params }: { params: { slug: string } }) {
+  await connectDB()
+  const page = await Page.findOne({ slug: params.slug, active: true }).lean()
 
   if (!page) {
     notFound()
   }
 
-  return <ReviewClient page={page} />
+  // Serialize for client component
+  const pageData = {
+    id: (page as any)._id.toString(),
+    slug: (page as any).slug,
+    businessName: (page as any).businessName,
+    reviewText: (page as any).reviewText,
+    googleReviewLink: (page as any).googleReviewLink,
+    active: (page as any).active,
+  }
+
+  return <ReviewClient page={pageData} />
 }

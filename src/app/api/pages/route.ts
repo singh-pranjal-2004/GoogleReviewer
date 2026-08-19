@@ -1,74 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-
-const DATA_PATH = path.join(process.cwd(), 'src/data/pages.json')
-
-interface PageData {
-  id: string
-  slug: string
-  businessName: string
-  reviewText: string
-  googleReviewLink: string
-  active: boolean
-}
-
-function getPages(): PageData[] {
-  const data = fs.readFileSync(DATA_PATH, 'utf-8')
-  return JSON.parse(data)
-}
-
-function savePages(pages: PageData[]) {
-  fs.writeFileSync(DATA_PATH, JSON.stringify(pages, null, 2))
-}
+import { connectDB } from '@/lib/mongodb'
+import Page from '@/models/Page'
 
 export async function GET() {
-  const pages = getPages()
+  await connectDB()
+  const pages = await Page.find().sort({ createdAt: -1 })
   return NextResponse.json(pages)
 }
 
 export async function POST(request: NextRequest) {
+  await connectDB()
   const body = await request.json()
-  const pages = getPages()
 
-  const newPage: PageData = {
-    id: `page-${Date.now()}`,
-    slug: body.slug || body.businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(),
+  const slug =
+    body.slug ||
+    body.businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now()
+
+  const page = await Page.create({
+    slug,
     businessName: body.businessName,
     reviewText: body.reviewText,
     googleReviewLink: body.googleReviewLink,
     active: body.active !== undefined ? body.active : true,
-  }
+  })
 
-  pages.push(newPage)
-  savePages(pages)
-
-  return NextResponse.json(newPage, { status: 201 })
+  return NextResponse.json(page, { status: 201 })
 }
 
 export async function PUT(request: NextRequest) {
+  await connectDB()
   const body = await request.json()
-  const pages = getPages()
 
-  const index = pages.findIndex((p) => p.id === body.id)
-  if (index === -1) {
+  const page = await Page.findByIdAndUpdate(
+    body._id,
+    {
+      businessName: body.businessName,
+      reviewText: body.reviewText,
+      googleReviewLink: body.googleReviewLink,
+      slug: body.slug,
+      active: body.active,
+    },
+    { new: true }
+  )
+
+  if (!page) {
     return NextResponse.json({ error: 'Page not found' }, { status: 404 })
   }
 
-  pages[index] = {
-    ...pages[index],
-    businessName: body.businessName ?? pages[index].businessName,
-    reviewText: body.reviewText ?? pages[index].reviewText,
-    googleReviewLink: body.googleReviewLink ?? pages[index].googleReviewLink,
-    slug: body.slug ?? pages[index].slug,
-    active: body.active !== undefined ? body.active : pages[index].active,
-  }
-
-  savePages(pages)
-  return NextResponse.json(pages[index])
+  return NextResponse.json(page)
 }
 
 export async function DELETE(request: NextRequest) {
+  await connectDB()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 
@@ -76,9 +59,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID required' }, { status: 400 })
   }
 
-  let pages = getPages()
-  pages = pages.filter((p) => p.id !== id)
-  savePages(pages)
-
+  await Page.findByIdAndDelete(id)
   return NextResponse.json({ success: true })
 }

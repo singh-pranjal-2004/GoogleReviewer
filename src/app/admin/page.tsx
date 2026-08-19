@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 
 interface PageData {
-  id: string
+  _id: string
   slug: string
   businessName: string
   reviewText: string
@@ -58,7 +58,7 @@ export default function AdminPanel() {
     e.preventDefault()
     if (!editingPage) return
 
-    const method = editingPage.id ? 'PUT' : 'POST'
+    const method = editingPage._id ? 'PUT' : 'POST'
     await fetch('/api/pages', {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -85,7 +85,7 @@ export default function AdminPanel() {
 
   function startNew() {
     setEditingPage({
-      id: '',
+      _id: '',
       slug: '',
       businessName: 'Moti Scrap Dealer',
       reviewText: '',
@@ -155,7 +155,7 @@ export default function AdminPanel() {
         {showForm && editingPage && (
           <div className="modal-overlay" onClick={() => setShowForm(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h2>{editingPage.id ? 'Edit Page' : 'New Page'}</h2>
+              <h2>{editingPage._id ? 'Edit Page' : 'New Page'}</h2>
               <form onSubmit={handleSave}>
                 <label>
                   Business Name
@@ -226,7 +226,7 @@ export default function AdminPanel() {
 
         <div className="pages-grid">
           {pages.map((page) => (
-            <div key={page.id} className={`page-card ${!page.active ? 'inactive' : ''}`}>
+            <div key={page._id} className={`page-card ${!page.active ? 'inactive' : ''}`}>
               <div className="page-card-header">
                 <h3>{page.businessName}</h3>
                 <span className={`badge ${page.active ? 'active' : 'inactive'}`}>
@@ -245,7 +245,7 @@ export default function AdminPanel() {
                 <button className="btn-preview" onClick={() => window.open(`/review/${page.slug}`, '_blank')}>
                   👁️ View
                 </button>
-                <button className="btn-delete" onClick={() => handleDelete(page.id)}>
+                <button className="btn-delete" onClick={() => handleDelete(page._id)}>
                   🗑️
                 </button>
               </div>
